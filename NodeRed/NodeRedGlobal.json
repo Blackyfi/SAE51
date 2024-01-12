@@ -1,0 +1,808 @@
+[
+    {
+        "id": "b67b2912ab37ad7c",
+        "type": "tab",
+        "label": "Flux 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "9b128dbad35886c5",
+        "type": "mqtt in",
+        "z": "b67b2912ab37ad7c",
+        "name": "MQTT (Non chiffré)",
+        "topic": "application/11/device/0c7e45010203033b/#",
+        "qos": "0",
+        "datatype": "auto",
+        "broker": "6bcd472c5064660f",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 200,
+        "y": 1040,
+        "wires": [
+            [
+                "d6f3c036cf313be3",
+                "85f0b0c98bd7fc17",
+                "a1181c78ce45e27d",
+                "d1e01072ef6b4276",
+                "692e1b8eb0180972"
+            ]
+        ]
+    },
+    {
+        "id": "d6f3c036cf313be3",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "Mesure1",
+        "func": "var inputMsg = msg.payload;\nvar inputMsg = JSON.parse(inputMsg);\nlet mydataString = inputMsg.object.mydata;\n\nvar mydataObject = JSON.parse(mydataString);\n\n\nvar temp1 = parseFloat(mydataObject.temp);\nvar hum1 = parseFloat(mydataObject.hum);\nvar humindex1 = parseFloat(mydataObject.humindex);\nvar nom1 = mydataObject.piece;\nvar nom1 = nom1.toLowerCase();\n\n\nvar resultat = { temp: temp1, hum: hum1, humindex: humindex1, piece: nom1 }\n\nmsg.payload = resultat;\nreturn msg;\n\n\n\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 450,
+        "y": 1040,
+        "wires": [
+            [
+                "8e59dcaba870b918",
+                "79ba88ece3a77229",
+                "58c58a4325c1042d"
+            ]
+        ]
+    },
+    {
+        "id": "8e59dcaba870b918",
+        "type": "influxdb out",
+        "z": "b67b2912ab37ad7c",
+        "influxdb": "b527f91b3e1c1732",
+        "name": "Mesure",
+        "measurement": "Mesure",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "database",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "organisation",
+        "bucket": "bucket",
+        "x": 650,
+        "y": 1040,
+        "wires": []
+    },
+    {
+        "id": "79ba88ece3a77229",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugMesure1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 670,
+        "y": 1100,
+        "wires": []
+    },
+    {
+        "id": "289ebcbcceb7f95d",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "Message (>35)",
+        "func": "var inputMsg = msg.payload;\n\nvar salle = inputMsg.piece;\nvar temp = inputMsg.temp; \n\nvar resultat = \"Alerte température : seuil dépassé. La température est actuellement de \" + temp +\" °c dans \" + salle + \" chez Madame Michu. Assistance nécessaire au 12 AV des apotres.\";\n\n\n\nmsg.payload = resultat; \nreturn msg; \n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 870,
+        "y": 1220,
+        "wires": [
+            [
+                "95d59873ca084e12",
+                "4993e557eaf3fc02",
+                "76521e5c788a874a"
+            ]
+        ]
+    },
+    {
+        "id": "95d59873ca084e12",
+        "type": "node-red-contrib-whatsapp-cmb-send-message",
+        "z": "b67b2912ab37ad7c",
+        "name": "Secours",
+        "credtype": "account",
+        "account": "bdc86f498539886c",
+        "text": "payload",
+        "phonenumbervalue": "",
+        "apikeyvalue": "",
+        "apikeyinputtypemessage": "msg",
+        "phonenumberinputtypemessage": "msg",
+        "inputtypemessage": "msg",
+        "rejectssl": false,
+        "x": 1190,
+        "y": 1240,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "af37c0124b3dbbe3",
+        "type": "switch",
+        "z": "b67b2912ab37ad7c",
+        "name": ">35",
+        "property": "payload.humindex",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "gt",
+                "v": "35",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 640,
+        "y": 1220,
+        "wires": [
+            [
+                "289ebcbcceb7f95d"
+            ]
+        ]
+    },
+    {
+        "id": "6a2bae3de11ad0f8",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "Message (30-35)",
+        "func": "var inputMsg = msg.payload;\n\nvar salle = inputMsg.piece;\nvar temp = inputMsg.temp; \n\nvar resultat = \"Alerte température, le seuil à été dépassé. La température est actuellement de \" + temp +\" °c dans \" + salle + \". Un besoin d'assistance est peut-être recquis\";\n\nmsg.payload = resultat; \nreturn msg; \n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 880,
+        "y": 1300,
+        "wires": [
+            [
+                "d5528bcfd79541c5",
+                "76521e5c788a874a"
+            ]
+        ]
+    },
+    {
+        "id": "896c0eaa8eaccc73",
+        "type": "switch",
+        "z": "b67b2912ab37ad7c",
+        "name": "30-35",
+        "property": "payload.humindex",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "btwn",
+                "v": "30",
+                "vt": "str",
+                "v2": "35",
+                "v2t": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 640,
+        "y": 1300,
+        "wires": [
+            [
+                "6a2bae3de11ad0f8"
+            ]
+        ]
+    },
+    {
+        "id": "e75223c114b0a87c",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "Message (1)",
+        "func": "var inputMsg = msg.payload;\n\nvar salle = inputMsg.piece;\n\nvar resultat = \"Alerte déclanché dans \"+ salle +\": par Madame Michu. Assistance nécessaire au 12 AV des apotres.\";\n\nmsg.payload = resultat;\nreturn msg; \n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 900,
+        "y": 1380,
+        "wires": [
+            [
+                "7a470c97407bf72c",
+                "76521e5c788a874a"
+            ]
+        ]
+    },
+    {
+        "id": "80ccdf4f2bad024f",
+        "type": "switch",
+        "z": "b67b2912ab37ad7c",
+        "name": "1",
+        "property": "payload.bouton",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "1",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 640,
+        "y": 1380,
+        "wires": [
+            [
+                "e75223c114b0a87c"
+            ]
+        ]
+    },
+    {
+        "id": "85f0b0c98bd7fc17",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "Humindex1",
+        "func": "var inputMsg = msg.payload;\nvar inputMsg = JSON.parse(inputMsg);\nlet mydataString = inputMsg.object.mydata;\n\nvar mydataObject = JSON.parse(mydataString);\n\nvar temp1 = parseFloat(mydataObject.temp);\nvar piece1 = mydataObject.piece;\nvar humindex1 = parseFloat(mydataObject.humindex);\nvar bouton1 = parseFloat(mydataObject.bouton);\n\nvar resultat = { humindex: humindex1, piece: piece1, temp: temp1, bouton: bouton1}\n\nmsg.payload = resultat;\nreturn msg; \n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 1280,
+        "wires": [
+            [
+                "896c0eaa8eaccc73",
+                "80ccdf4f2bad024f",
+                "d51538cb79a8e5cc",
+                "af37c0124b3dbbe3"
+            ]
+        ]
+    },
+    {
+        "id": "4993e557eaf3fc02",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "Debug>35",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 1260,
+        "wires": []
+    },
+    {
+        "id": "d5528bcfd79541c5",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "Debug30-35",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 1340,
+        "wires": []
+    },
+    {
+        "id": "7a470c97407bf72c",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugBoutton",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 1420,
+        "wires": []
+    },
+    {
+        "id": "a1181c78ce45e27d",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugMQTT1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 170,
+        "y": 1120,
+        "wires": []
+    },
+    {
+        "id": "5c9f8cd1323baace",
+        "type": "file",
+        "z": "b67b2912ab37ad7c",
+        "name": "",
+        "filename": "/var/www/html/grav/user/pages/donnees-environnementales/default.md",
+        "filenameType": "str",
+        "appendNewline": false,
+        "createDir": false,
+        "overwriteFile": "true",
+        "encoding": "none",
+        "x": 900,
+        "y": 1700,
+        "wires": [
+            [
+                "5d0ae3ba3ea3217a"
+            ]
+        ]
+    },
+    {
+        "id": "d1e01072ef6b4276",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "DonnéesEnvironementales",
+        "func": "var inputMsg = msg.payload;\nvar inputMsg = JSON.parse(inputMsg);\nlet mydataString = inputMsg.object.mydata;\n\nvar mydataObject = JSON.parse(mydataString);\n\n\nvar temp1 = parseFloat(mydataObject.temp);\nvar hum1 = parseFloat(mydataObject.hum);\nvar humindex1 = parseFloat(mydataObject.humindex);\nvar nom1 = parseFloat(mydataObject.piece);\n\n\nvar tableauMarkdown = ''\nvar titre = '---\\ntitle: \"Gestion du confort\"\\n---\\n\\n\\n\\n\\n' + \"#Gestion du confort\\n' + 'Dans cette page vous trouverez l'historique des données environementales de chaque pieces, ainsi qu'un suivi de l'humindex des 12 dernières heures(dans les pieces dans lesquelles vous êtes passé)\\n\\n\\n\\n\\n\";\n\n\nvar cadphp = 'cadphp:p1:bdd\\n';\nvar cadphp2 = 'cadphp:p2:bdd2\\n';\nvar cadphp3 = 'cadphp:p3:bdd3\\n';\nvar cadphp4 = 'cadphp:p4:bdd4\\n';\nvar cadphp5 = 'cadphp:p5:bdd5\\n';\nvar cadphp6 = 'cadphp:p6:bdd6\\n';\n\nvar vide = '<br><br> \\n';\n\nvar graphsallon = '<iframe src=\"http://83.113.15.108:3000/d-solo/ef12063d-2c73-4f6f-8a9f-24fc6e84baee/sdb?orgId=1&from=now-12h&to=now&theme=light&panelId=1\" width=\"800\" height=\"550\" frameborder=\"0\"></iframe>\\n';\nvar graphchambre = '<iframe src=\"http://83.113.15.108:3000/d-solo/ef12063d-2c73-4f6f-8a9f-24fc6e84baee/sdb?orgId=1&from=now-12h&to=now&theme=light&panelId=2\" width=\"800\" height=\"550\" frameborder=\"0\"></iframe>'\nvar graphwc = '<iframe src=\"http://83.113.15.108:3000/d-solo/ef12063d-2c73-4f6f-8a9f-24fc6e84baee/sdb?orgId=1&from=now-12h&to=now&theme=light&panelId=5\" width=\"800\" height=\"550\" frameborder=\"0\"></iframe>'\nvar graphsdb = '<iframe src=\"http://83.113.15.108:3000/d-solo/ef12063d-2c73-4f6f-8a9f-24fc6e84baee/sdb?orgId=1&from=now-12h&to=now&theme=light&panelId=3\" width=\"800\" height=\"550\" frameborder=\"0\"></iframe>'\nvar graphcuisine = '<iframe src=\"http://83.113.15.108:3000/d-solo/ef12063d-2c73-4f6f-8a9f-24fc6e84baee/sdb?orgId=1&from=now-12h&to=now&theme=light&panelId=4\" width=\"800\" height=\"550\" frameborder=\"0\"></iframe>'\nvar graphsdr = '<iframe src=\"http://83.113.15.108:3000/d-solo/ef12063d-2c73-4f6f-8a9f-24fc6e84baee/sdb?orgId=1&from=now-12h&to=now&theme=light&panelId=6\" width=\"800\" height=\"550\" frameborder=\"0\"></iframe>'\n\n/*\nfunction formatDate(date) {\n    var mois = date.toLocaleString('default', { month: 'short' });\n    var jour = date.getDate();\n    var annee = date.getFullYear();\n    var heures = date.getHours();\n    var minutes = date.getMinutes();\n    var secondes = date.getSeconds();\n\n    return `${mois} ${jour} ${annee} ${heures}:${minutes}:${secondes}`;\n}\n// Charger le tableau existant à partir du contexte\ncontext.dataArray = context.dataArray || [];\n\n// Ajouter une nouvelle entrée au tableau de données\nvar nouvelleEntree = {\n    time: formatDate(new Date()),\n    temperature: temp1,\n    humidity: hum1,\n    humindex: humindex1,\n    piece: nom1\n};\n\n// Ajouter la nouvelle entrée au début du tableau\ncontext.dataArray.unshift(nouvelleEntree);\n\n// Limiter le tableau à 10 entrées\ncontext.dataArray = context.dataArray.slice(0, 40);\n\n// Créer le tableau Markdown à partir du tableau de données\ntableauMarkdown = '| Time | Temperature | Humidity | Humindex | Piece |\\n';\ntableauMarkdown += '|------|-------------|----------|----------|-------|\\n';\n\nfor (var i = 0; i < context.dataArray.length; i++) {\n    var entry = context.dataArray[i];\n    tableauMarkdown += `| ${entry.time} | ${entry.temperature} | ${entry.humidity} | ${entry.humindex} | ${entry.piece} |\\n`;\n}\n\n// Mise à jour du contexte avec le tableau mis à jour\ncontext.dataArray = context.dataArray;\n*/\n\nmsg.payload = titre + vide + cadphp + graphsallon + vide + vide + vide + cadphp2 + graphchambre + vide + vide + vide + cadphp3 + graphwc + vide + vide + vide + cadphp4 + graphsdb + vide + vide + vide + cadphp5 + graphcuisine + vide + vide + vide + cadphp6 + graphsdr;\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 1740,
+        "wires": [
+            [
+                "8b74499e9a012f1c",
+                "5c9f8cd1323baace"
+            ]
+        ]
+    },
+    {
+        "id": "8b74499e9a012f1c",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugDonnéesEnvironementales",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 780,
+        "y": 1740,
+        "wires": []
+    },
+    {
+        "id": "5d0ae3ba3ea3217a",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugDonnéesEnvironementales2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1380,
+        "y": 1700,
+        "wires": []
+    },
+    {
+        "id": "d51538cb79a8e5cc",
+        "type": "switch",
+        "z": "b67b2912ab37ad7c",
+        "name": "<15",
+        "property": "payload.humindex",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "lt",
+                "v": "15",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 640,
+        "y": 1460,
+        "wires": [
+            [
+                "4fa1e2b11c0db8dc"
+            ]
+        ]
+    },
+    {
+        "id": "1374db8c02aff243",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "Debug<15",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 1500,
+        "wires": []
+    },
+    {
+        "id": "4fa1e2b11c0db8dc",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "Message (<15)",
+        "func": "var inputMsg = msg.payload;\n\nvar salle = inputMsg.piece;\nvar temp = inputMsg.temp; \n\nvar resultat = \"Alerte température, le seuil à été dépassé. La température est actuellement de \" + temp +\" °c dans \" + salle + \". Un besoin d'assistance est peut-être recquis\";\n\n\n\nmsg.payload = resultat; \nreturn msg; \n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 890,
+        "y": 1460,
+        "wires": [
+            [
+                "1374db8c02aff243",
+                "76521e5c788a874a"
+            ]
+        ]
+    },
+    {
+        "id": "2f2130a48f086c03",
+        "type": "file",
+        "z": "b67b2912ab37ad7c",
+        "name": "",
+        "filename": "/var/www/html/grav/user/pages/donnees-localisation/default.md",
+        "filenameType": "str",
+        "appendNewline": false,
+        "createDir": false,
+        "overwriteFile": "true",
+        "encoding": "none",
+        "x": 870,
+        "y": 1640,
+        "wires": [
+            [
+                "8d65edca552d75eb"
+            ]
+        ]
+    },
+    {
+        "id": "8d65edca552d75eb",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugImageLocalisation2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1290,
+        "y": 1640,
+        "wires": []
+    },
+    {
+        "id": "692e1b8eb0180972",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "ImageLocalisation",
+        "func": "var inputMsg = msg.payload;\nvar inputMsg = JSON.parse(inputMsg);\nlet mydataString = inputMsg.object.mydata;\n\nvar mydataObject = JSON.parse(mydataString);\n\n\nvar piece = mydataObject.piece;\n\nvar newContent = `\n---\ntitle: 'Données localisation'\n---\n\n#Données Actuelle\n\nDans cette rebrique vous trouverez les inforamtions en tant réel de la pièce dans laquelle vous êtes, ainsi qu'un baromètre du confort de la pièce. \n\n\n![ ` + piece + `](cartographie_MIB_` + piece +`.png)\n\n<iframe src=\"http://83.113.15.108:3000/d-solo/ef12063d-2c73-4f6f-8a9f-24fc6e84baee/sdb?orgId=1&from=now-12h&to=now&theme=light&panelId=7\" width=\"800\" height=\"550\" frameborder=\"0\"></iframe>\n\n\n`;\n\nmsg.payload = newContent;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 1600,
+        "wires": [
+            [
+                "2f2130a48f086c03",
+                "e9d19b258b7ad3fb"
+            ]
+        ]
+    },
+    {
+        "id": "e9d19b258b7ad3fb",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugImageLocalisation2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 750,
+        "y": 1600,
+        "wires": []
+    },
+    {
+        "id": "76521e5c788a874a",
+        "type": "node-red-contrib-whatsapp-cmb-send-message",
+        "z": "b67b2912ab37ad7c",
+        "name": "Conjoint",
+        "credtype": "account",
+        "account": "bdc86f498539886c",
+        "text": "payload",
+        "phonenumbervalue": "",
+        "apikeyvalue": "",
+        "apikeyinputtypemessage": "msg",
+        "phonenumberinputtypemessage": "msg",
+        "inputtypemessage": "msg",
+        "rejectssl": false,
+        "x": 1190,
+        "y": 1320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "f0fc4e2f7407f039",
+        "type": "mqtt in",
+        "z": "b67b2912ab37ad7c",
+        "name": "MQTT_Anal",
+        "topic": "analysespec",
+        "qos": "0",
+        "datatype": "auto",
+        "broker": "6bcd472c5064660f",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 200,
+        "y": 1920,
+        "wires": [
+            [
+                "e11ca77f394c3699",
+                "f44e331b07c58fea"
+            ]
+        ]
+    },
+    {
+        "id": "e11ca77f394c3699",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "Anal",
+        "func": "var tableauMarkdown = ''\nvar titre = '---\\ntitle: \"Analyse spectrale\"\\n---\\n\\n\\n\\n\\n' + \"#Gestion du confort\\n' + 'Dans cette page vous trouverez l'historique des données environementales de chaque pieces, ainsi qu'un suivi de l'humindex des 12 dernières heures(dans les pieces dans lesquelles vous êtes passé)\\n\\n\\n\\n\\n\";\n\nvar cadphp = 'cadphp:p1:bdd7\\n';\nvar vide = '<br><br> \\n';\n\nmsg.payload = titre + vide + cadphp;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 1920,
+        "wires": [
+            [
+                "6c818080e3c44f63",
+                "8c2fa21f2d8e2ebf"
+            ]
+        ]
+    },
+    {
+        "id": "7c2a7e47f5d202f8",
+        "type": "influxdb out",
+        "z": "b67b2912ab37ad7c",
+        "influxdb": "b527f91b3e1c1732",
+        "name": "Analyse",
+        "measurement": "Anal",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "database",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "organisation",
+        "bucket": "bucket",
+        "x": 740,
+        "y": 2060,
+        "wires": []
+    },
+    {
+        "id": "6c818080e3c44f63",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugAnal",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 460,
+        "y": 1980,
+        "wires": []
+    },
+    {
+        "id": "8c2fa21f2d8e2ebf",
+        "type": "file",
+        "z": "b67b2912ab37ad7c",
+        "name": "",
+        "filename": "/var/www/html/grav/user/pages/donnees-analyse-spectrale/default.md",
+        "filenameType": "str",
+        "appendNewline": false,
+        "createDir": false,
+        "overwriteFile": "true",
+        "encoding": "none",
+        "x": 800,
+        "y": 1920,
+        "wires": [
+            [
+                "c5999d54c1a918e9"
+            ]
+        ]
+    },
+    {
+        "id": "58c58a4325c1042d",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugMesure2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 530,
+        "y": 1140,
+        "wires": []
+    },
+    {
+        "id": "c5999d54c1a918e9",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugAnal2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 980,
+        "y": 1960,
+        "wires": []
+    },
+    {
+        "id": "f44e331b07c58fea",
+        "type": "function",
+        "z": "b67b2912ab37ad7c",
+        "name": "AnalBDD",
+        "func": "\nlet inputMsg = msg.payload;\nlet gain1 = inputMsg.gain;\n\nlet resultat = { gain: gain1}\n\nmsg.payload = resultat;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 470,
+        "y": 2060,
+        "wires": [
+            [
+                "7c2a7e47f5d202f8",
+                "694eb7d81100f080"
+            ]
+        ]
+    },
+    {
+        "id": "694eb7d81100f080",
+        "type": "debug",
+        "z": "b67b2912ab37ad7c",
+        "name": "DebugAnalBDD",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 2120,
+        "wires": []
+    },
+    {
+        "id": "6bcd472c5064660f",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "chirpstack.iut-blagnac.fr",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "b527f91b3e1c1732",
+        "type": "influxdb",
+        "hostname": "127.0.0.1",
+        "port": "8086",
+        "protocol": "http",
+        "database": "Maison1",
+        "name": "Maison1",
+        "usetls": true,
+        "tls": "00fb87db2c87f778",
+        "influxdbVersion": "1.x",
+        "url": "http://localhost:8086",
+        "rejectUnauthorized": true
+    },
+    {
+        "id": "bdc86f498539886c",
+        "type": "node-red-contrib-whatsapp-cmb-account",
+        "name": "clement"
+    },
+    {
+        "id": "00fb87db2c87f778",
+        "type": "tls-config",
+        "name": "",
+        "cert": "/etc/ssl/client/client.crt",
+        "key": "/etc/ssl/client/client.key",
+        "ca": "/etc/ssl/ca/ca.crt",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "servername": "",
+        "verifyservercert": false,
+        "alpnprotocol": ""
+    }
+]
