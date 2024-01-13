@@ -1,33 +1,23 @@
-#include <M5Stack.h>
-#include <WiFi.h>
-#include <lmic.h>
-#include <hal/hal.h>
-#include <SPI.h>
-#include <Ticker.h> // Ajout de la bibliothèque Ticker
+#include <M5Stack.h> // Inclut la bibliothèque pour le M5Stack
+#include <WiFi.h> // Inclut la bibliothèque pour la gestion du WiFi
+#include <lmic.h> // Inclut la bibliothèque pour LoRaWAN
+#include <hal/hal.h> // Inclut la bibliothèque pour le matériel LoRaWAN
+#include <SPI.h> // Inclut la bibliothèque pour le bus SPI
+#include <Ticker.h> // Inclut la bibliothèque Ticker pour la gestion des temporisateurs
 
-Ticker wifiScanTimer; // Déclaration du timer
+Ticker wifiScanTimer; // Déclare un objet Ticker pour gérer un temporisateur
 
-// Ajout des définitions pour LoRa
-static const u1_t PROGMEM APPEUI[8]={ 0x0C, 0x7E, 0x45, 0x01, 0x02, 0x03, 0x03, 0x3B };         // 8 octets  
+// Définition des clés pour LoRaWAN
+static const u1_t PROGMEM APPEUI[8]={ 0x0C, 0x7E, 0x45, 0x01, 0x02, 0x03, 0x03, 0x3B };
 void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
 
-//    0x0C, 0x7E, 0x45, 0x01, 0x02, 0x03, 0x03, 0x32      nouvelle clé si besoin, c'est la 50 
-// This should also be in little endian format, see above.
-
-static const u1_t PROGMEM DEVEUI[8]={ 0x3B, 0x03, 0x03, 0x02, 0x01, 0x45, 0x7E, 0x0C };    // la 60 dans le tableau
+static const u1_t PROGMEM DEVEUI[8]={ 0x3B, 0x03, 0x03, 0x02, 0x01, 0x45, 0x7E, 0x0C };
 void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
 
-//            0x32, 0x0C, 0x03, 0x02, 0x01, 0x45, 0x7E, 0x0C
-// This key should be in big endian format (or, since it is not really a
-// number but a block of memory, endianness does not really apply). In
-// practice, a key taken from ttnctl can be copied as-is.
-
-static const u1_t PROGMEM APPKEY[16] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x03, 0x3B }; //16 octets
+static const u1_t PROGMEM APPKEY[16] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x03, 0x3B };
 void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
 
-//        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x03, 0x32
-
-
+// Configuration des broches pour LoRa
 const lmic_pinmap lmic_pins = {   
   .nss = 5, 
   .rxtx = LMIC_UNUSED_PIN, 
@@ -35,22 +25,26 @@ const lmic_pinmap lmic_pins = {
   .dio = {36, 35, 36}
 };
 
+// Configuration des paramètres WiFi
 const char *ssid = "Montre";
 const char *password = "MotDePasseVraimentDureJazz";
 const int cryptingKey = 24;
 String expectedSignature = "Signature super securise jazz";
 
+// Configuration de l'adresse IP statique pour le WiFi
 IPAddress staticIP(192, 168, 1, 10);
 IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 255, 0);
 
+// Création d'un serveur et d'un client WiFi
 WiFiServer server(80);
 WiFiClient client;
 
-// Définition de l'état des boutons
+// Déclaration des états des boutons
 bool etatBoutonA = true;
 bool etatBoutonB = false;
 
+// Structure pour stocker des données extraites
 struct ExtractedData {
   String ssid;
   String temp; 
@@ -58,22 +52,26 @@ struct ExtractedData {
   String humidex;
 };
 
+// Variable pour stocker les données extraites
 struct ExtractedData messageExtractedData;
 
-String authorizedSSIDs[] = {"sdr","sdb","chambre","sallon","cuisine","wc"}; // Ajoutez les SSIDs que vous souhaitez suivre
+// Liste des SSID autorisés
+String authorizedSSIDs[] = {"sdr","sdb","chambre","sallon","cuisine","wc"};
 
-static uint8_t mydata[] = "coucou les musulmans moi je mange la glace, coucou les musulmans rahhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh";
+// Initialisation des Données à envoyer via LoRawan 
+static uint8_t mydata[] = "ceci est la chaîne initiale qui sera modifié dès que l'on aura reçu nos premières données par un AP Wifi connecté";
 static osjob_t sendjob;
 
+// Intervalle d'envoi des données via LoRawan
 const unsigned TX_INTERVAL = 45;
 String etatAlerte = "0";
 
-
+// Flag pour indiquer si les données sont prêtes au niveau de la récupération de données par wifi
 bool dataReady = false;
 
-
+// Déclaration des fonctions
 void wifiSetup();
-void wifiScanAndSend(); // Déclaration de la fonction qui sera appelée par le timer
+void wifiScanAndSend();
 void printHex2(unsigned v);
 void onEvent (ev_t ev);
 String messageDecryption(String messageToDecrypt);
@@ -84,99 +82,87 @@ struct ExtractedData extraireInfoDuMessage(String messageToDisplay);
 void handleClient();
 void sendLora(osjob_t* j);
 void wifiScanAndSend();
-//void initDisplay();
 void affichageDesactivationAlarme();
 void affichageEtatInitial(String nomPiece, String temperature, String humidite, String humindex);
 void affichageAlarmeDeclenchee();
 
-void setup() {
-  M5.begin();
-  //initDisplay();          
-  Serial.begin(115200);   // Initialise la communication série
-  wifiSetup();
-  
-  while (millis() < 5000) {
-    //Serial.print("millis() = "); Serial.println(millis());
-    //delay(500);
-    }
-    Serial.println(F("Starting"));
-  
-// Initialisation LoRaWAN
-  #ifdef VCC_ENABLE
-      // For Pinoccio Scout boards
-      pinMode(VCC_ENABLE, OUTPUT);
-      digitalWrite(VCC_ENABLE, HIGH);
-      delay(1000);
-  #endif
 
-    // LMIC init
-    os_init();
-    // Reset the MAC state. Session and pending data transfers will be discarded.
-    LMIC_reset();
-    delay(5000);
-    handleClient();
+// Fonction setup, exécutée au démarrage de la carte
+void setup() {
+    M5.begin(); // Initialise le M5Stack
+    Serial.begin(115200); // Initialise la communication série à 115200 bauds
+    wifiSetup(); // Appelle la fonction de configuration du WiFi
+    
+    // Attente de 5 secondes au démarrage
+    while (millis() < 5000) {}
+    
+    Serial.println(F("Starting"));
+    
+    // Initialisation de LoRaWAN
+    os_init(); // Initialise le stack LoRaWAN
+    LMIC_reset(); // Réinitialise la configuration LoRaWAN
+    delay(5000); // Délai pour s'assurer que LoRaWAN est prêt
+    handleClient(); // Gère les requêtes clients
+    // Boucle d'attente jusqu'à ce que les données soient prêtes
     while (dataReady != true) {
-    delay(1000);
-  }
+        delay(1000);
+    }
+    // Affiche l'état initial sur l'écran après réception des données
     affichageEtatInitial(messageExtractedData.ssid, messageExtractedData.temp, messageExtractedData.humidity, messageExtractedData.humidex);
-    dataReady = false;  // Réinitialisation du drapeau
-    wifiScanTimer.attach(45, wifiScanAndSend);
+    dataReady = false; // Réinitialise le drapeau de données prêtes
+    wifiScanTimer.attach(45, wifiScanAndSend); // Configure le temporisateur pour scanner et envoyer les données toutes les 45 secondes
 }
 
+// Boucle principale, exécutée en continu après le setup
 void loop() {
-  etatAlerte = "0";
-  M5.update();
-  
-  
-  // Gestion de l'état du bouton A
-  if (etatBoutonA && M5.BtnA.wasPressed()) {
+    etatAlerte = "0"; // Réinitialise l'état d'alerte
+    M5.update(); // Met à jour l'état du M5Stack
+    
+    // Gestion de l'état du bouton A
+    if (etatBoutonA && M5.BtnA.wasPressed()) {
     etatBoutonA = false;
     etatBoutonB = true;
-    M5.Speaker.tone(440, 200); // Joue un son (440 Hz pendant 200 ms)
-    affichageAlarmeDeclenchee();
-
-    // Attendre 5 secondes pour la pression du bouton B
+    M5.Speaker.tone(440, 200); // Émet un son
+    affichageAlarmeDeclenchee(); // Affiche l'alarme déclenchée
+    // Attente de 5 secondes pour la pression du bouton B
     unsigned long debut = millis();
     while (millis() - debut < 5000) {
       M5.update();
       if (etatBoutonB && M5.BtnB.wasPressed()) {
         etatBoutonA = true;
         etatBoutonB = false;
-        affichageDesactivationAlarme();
+        affichageDesactivationAlarme(); // Affiche la désactivation de l'alarme
         affichageEtatInitial(messageExtractedData.ssid, messageExtractedData.temp, messageExtractedData.humidity, messageExtractedData.humidex);
         Serial.println("Annulé !");
         break;
       }
     }
-
+    
     // Si le bouton B n'a pas été pressé dans les 5 secondes
     if (etatBoutonB) {
-      etatAlerte = "1";
-      handleClient();
-      sendLora(&sendjob);
+      etatAlerte = "1"; // Met à jour l'état d'alerte
+      handleClient(); // Gère les requêtes clients
+      sendLora(&sendjob); // Envoie les données via LoRa
       etatBoutonA = true;
       etatBoutonB = false;
-      affichageEtatInitial(messageExtractedData.ssid, messageExtractedData.temp, messageExtractedData.humidity, messageExtractedData.humidex); // Exemple de valeurs
+      affichageEtatInitial(messageExtractedData.ssid, messageExtractedData.temp, messageExtractedData.humidity, messageExtractedData.humidex); // Affiche l'état initial
     }
   }
-  os_runloop_once(); // Ajouté pour la boucle LoRa
+  os_runloop_once(); // Exécute une itération de la boucle d'événements LoRaWAN
 }
 
-/*/////////////////////////////////////////////////////////////////// Edwin 
-// il faudra faire le point sur l'envoie des données des capteurs, et le traitement des alarmes suite à température ou humindex (ou batterie mais ça c'est un sujet différent)
-//je fais faire un doc dans le dossier gateway lora avec un test d'envoie basique sur MQTT d'un message qui ressemblera au notre avec des données, et normalement Ny Avo devra le tester demain matin avec un tuto MQTT explorer que je vais aussi mettre dans le dossier
-//R404 partie Lora à faire attention => Réduisez le délai entre 2 émissions pour respectez la législation sub-gigahertz d’un rapport cyclique de 1%. Expliquez pourquoi !
-*/
 
+// Fonction pour afficher une valeur hexadécimale
 void printHex2(unsigned v) {
-    v &= 0xff;
-    if (v < 16)
-      {
-        Serial.print('0');
-      }  
-    Serial.print(v, HEX);
+v &= 0xff; // Assure que la valeur est sur 8 bits
+if (v < 16) {
+Serial.print('0'); // Ajoute un zéro pour les valeurs inférieures à 16 (format hexadécimal)
+}
+Serial.print(v, HEX); // Affiche la valeur en hexadécimal
 }
 
+// Gestion des événements LoRaWAN
+// Switch pour différents types d'événements LoRaWAN
 void onEvent (ev_t ev) {
     Serial.print(os_getTime());
     Serial.print(": ");
@@ -280,9 +266,6 @@ void onEvent (ev_t ev) {
     }
 } 
 
-
-//code batterie + alarme batterie à ajouter ici
-
 // Fonction de déchiffrement du message
 // Prend en entrée le message à déchiffrer (messageToDecrypt)
 // Retourne le message déchiffré en décalant chaque caractère par la clé de chiffrement (cryptingKey)
@@ -383,44 +366,34 @@ String getRoomCoordinates() {
 
 
 ///////////////////////////////////////////////////////////////////////// Fonction pour extraire la température, humidité et ssid du message reçus
-// Ajout de la définition de la fonction extraireInfoDuMessage()
 struct ExtractedData extraireInfoDuMessage(String messageToDisplay) {
   ExtractedData data;
 
-  // Find the position of "SSID :"
   int startSsid = messageToDisplay.indexOf("SSID :") + 6;
 
-  // Find the position of "Température : "
   int startTemp = messageToDisplay.indexOf("Température : ") + 13;
 
-  // Find the position of "Humidity : "
   int startHumidity = messageToDisplay.indexOf("Humidity : ") + 11;
 
-  // Find the position of "Humidex : "
   int startHumidex = messageToDisplay.indexOf("Humidex : ") + 10;
 
-  // Extract SSID
   data.ssid = messageToDisplay.substring(startSsid, startTemp - 13);
   data.ssid.trim();
 
-  // Extract Temperature
-  int endTemp = messageToDisplay.indexOf("°C", startTemp); // Find the position of "°C"
+  int endTemp = messageToDisplay.indexOf("°C", startTemp); 
   data.temp = messageToDisplay.substring(startTemp + 2, endTemp);
   data.temp.trim();
 
-  // Extract Humidity
-  int endHumidity = messageToDisplay.indexOf("%", startHumidity); // Find the position of "Humidex : "
+  int endHumidity = messageToDisplay.indexOf("%", startHumidity); 
   data.humidity = messageToDisplay.substring(startHumidity, endHumidity);
   data.humidity.trim();
 
-  // Extract Humidex
-  int endHumidex = messageToDisplay.indexOf(" Message", startHumidex); // Find the position of "°C"
+  int endHumidex = messageToDisplay.indexOf(" Message", startHumidex); 
   data.humidex = messageToDisplay.substring(startHumidex, endHumidex);
   data.humidex.trim();
 
   return data;
 }
-///////////////////////////////////////////////////////////////////////// Fonction pour extraire la température, humidité et ssid du message reçus
 
 
 void handleClient() {
@@ -484,12 +457,12 @@ void handleClient() {
 
 
 void sendLora(osjob_t* j) {
-  if (LMIC.opmode & OP_TXRXPEND) // Check if there is a current TX/RX job running
+  if (LMIC.opmode & OP_TXRXPEND) 
   {
       Serial.println("OP_TXRXPEND, not sending ");
   } 
   else {
-      // Prepare upstream data transmission at the next possible time.
+      
 
       //snprintf((char*)mydata, sizeof(mydata), "piece:%s, temp:%s, hum:%s, humindex:%s, bouton:%s", messageExtractedData.ssid.c_str(), messageExtractedData.temp.c_str(), messageExtractedData.humidity.c_str(), messageExtractedData.humidex.c_str(), etatAlerte.c_str());
     snprintf((char*)mydata, sizeof(mydata), "{\"piece\":\"%s\", \"temp\":\"%s\", \"hum\":\"%s\", \"humindex\":\"%s\", \"bouton\":\"%s\"}", 
@@ -546,7 +519,7 @@ void affichageDesactivationAlarme() {
 
 void affichageEtatInitial(String nomPiece, String temperature, String humidite, String humindex) {
   M5.Lcd.clear();
-  //float batterie = M5.Power.getBatteryLevel();
+  //float batterie = M5.Power.getBatteryLevel();   => affichage de la batterie restante, mais pas fonctionnel avec Lora
 
     // Effacer uniquement la zone où le SSID est affiché
     M5.Lcd.fillRect(0, 0, 320, 50, BLACK); // Ajustez les dimensions au besoin
@@ -613,7 +586,6 @@ void affichageEtatInitial(String nomPiece, String temperature, String humidite, 
         }
     }  
 }*/
-
 
 void affichageAlarmeDeclenchee() {
   M5.Lcd.clear();
