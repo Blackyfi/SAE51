@@ -1,0 +1,50 @@
+#!/bin/bash
+
+#On attribue les droits d'éxécution au fichier
+chmod +x ASetMEMO.py 	
+
+#Affiche un message indiquant le début de l'exécution du programme GNU Radio
+echo "Execution du programme GNU Radio"
+echo "Mémorisation en cours ..."
+
+#Utilisation de la commande timeout pour exécuter le script ASetMEMO.py pendant 15 secondes (test) et rediriger les données vers un fichier .txt
+timeout 20s ./ASetMEMO.py 2>&1 > console_GNU.txt
+
+#On affiche l'enregistrement des données
+cat console_GNU.txt 
+echo "La mémorisation est terminée."
+
+# Affiche un message indiquant le début du traitement des données.
+# Atente de 5 secondes pour vérifier l'enregistrement.
+echo "Traitement des données en cours ..."
+sleep 5
+
+#On définit deux variables
+valeurs_gain="console_GNU.txt" #Fichier d'entrée
+val_traites="data_traite.txt" #Fichier de sortie
+
+#On utilise la commande grep pour extraire les valeurs décimales (positives ou négatives) du fichier "valeurs_gain" vers le fichiers "val_traites" (-oE = Only Expressions)
+grep -oE '[-]+[0-9]+[.]+[0-9]+' $valeurs_gain > "$val_traites"
+
+#Affichage des données traitées et message de fin de programme.
+cat data_traite.txt
+echo "Le traitement des données est terminé."
+echo "Ces dernières sont stockées dans data_traite.txt"
+
+# Envoi des données de data_traite.txt ligne par ligne toutes les 2 secondes
+TOPIC="analysespec"
+FILE_PATH="/home/etud/Bureau/data_traite.txt" #Pas sûr s'il faut changer le chemin
+
+function envoi(){
+	while IFS= read -r line; do
+		json_data="{\"gain\": \"$line\"}"
+		mosquitto_pub -t "$TOPIC" -m "$json_data" -u student -P student -h chirpstack.iut-blagnac.fr -p 1883
+		echo $line
+    sleep 2
+done < "$FILE_PATH"
+}
+
+#Appel de la fonction d'envoi MQTT
+envoi
+echo "Envoi des informations sur la page web"
+echo "Fin du programme"
